@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PISA Variable Explorer</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+
+        /* Uncomment blocks below if we want dark mode */
+        /* You would also have to change the color/ fill of all the chart labels to white */
+
+        /*background: #111;
+      color: white; */
+
+
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+   .charts-container {
+  display: flex;
+  justify-content: center;
+}
+
+.chart-block {
+  width: 750px;
+  margin-right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chart-block:last-child {
+  margin-right: 0;
+}
+
+
+
+    /* Can change colors, opacity, and width of chart elements
+    Went with GT colors */
+
+    .axis line, .axis path { stroke: #555; }
+    .bar { opacity: 1.0; fill: #003057; }
+    .line { stroke: #B3A369; stroke-width: 2.5; fill: none; }
+    label { font-weight: bold; margin-right: 6px; }
+    select { margin: 0 12px 15px 0; padding: 4px; }
+  </style>
+</head>
+
+<body>
+
+<h1>PISA Variable Explorer</h1>
+
+<div class="charts-container">
+
+
+  <!-- Left Graph -->
+<div class="chart-block">
+  <div>
+    <label for="var1">Variable:</label>
+    <select id="var1"></select>
+
+    <label for="response1">Response:</label>
+    <select id="response1"></select>
+  </div>
+
+  <svg id="chart1"></svg>
+</div>
+
+
+
+    <!-- Right Graph -->
+<div class="chart-block">
+  <div>
+    <label for="var2">Variable:</label>
+    <select id="var2"></select>
+
+    <label for="response2">Response:</label>
+    <select id="response2"></select>
+  </div>
+
+  <svg id="chart2"></svg>
+</div>
+
+<script>
+
+
+    // Variables from R Code and PISA 2022 Technical Report and human-readable terms in quotes
+
+    // If you change the predictors you want to look at, you will have to change them both in R and here
+
+const predictors = {
+  BELONG: "Sense of Belonging",
+  BULLIED: "Being Bullied",
+  FEELSAFE: "Feel Safe",
+  TEACHSUP: "Math Teacher Support",
+  RELATST: "Quality of student-teacher relationships",
+  FAMSUP: "Family Support",
+  WORKHOME: "Working in household or taking care of family members",
+  SCHRISK: "School safety risks",
+  CREATFAM: "Creative peers and family environment",
+  CREATSCH: "Creative school and class environment",
+  FAMSUPSL: "Family support for self-directed learning",
+  FEELLAH: "Feelings about learning at home",
+  SCHSUST: "School actions to sustain learning",
+  FLFAMILY: "Parental involvement in matters of financial literacy",
+  ACCESSFP: "Access to money and financial projects – Sources of money",
+  STUBMI: "Body mass index",
+  BODYIMA: "Body Image",
+  LIFESAT: "Life Satisfaction",
+  PSYCHSYM: "Psychosomatic symptoms",
+  SOCCON: "Social connections: Ease of communication about worries and concerns",
+  PAREXPT: "Parents’ expectations in child’s future educational career",
+  CURSUPP: "Current parental/guardian support",
+  PQMIMP: "Parent attitudes toward mathematics",
+  PQMCAR: "Parents’ responses to questions about mathematics-related careers",
+  PARINVOL: "Parental involvement",
+  PQSCHOOL: "School quality",
+  PASCHPOL: "School policies for parental involvement",
+  CREATHME: "Creative home environment",
+  MATHEXC: "School: Mathematics extension courses offered at school",
+  MACTIV: "School: Mathematics-related extra-curricular activities at school",
+  PROPSUPP: "School: proportion of personnel for pedagogical support",
+  PROADMIN: "School: proportion of school administrative personnel",
+  PROMGMT: "School: proportion of school management personnel",
+  PROOSTAF: "School: proportion of other non-teaching staff",
+  ENCOURPG: "School: School encouragement of parent or guardian involvement",
+  TCISCED: "Teacher: Higher educational level attained",
+  TCWKLOAD: "Teacher: Weekly teacher workload",
+  SATJOB: "Teacher: Satisfaction with current job environment",
+  SATTEACH: "Teacher: Satisfaction with teaching profession",
+  SEFFREL: "Teacher’s self-efficacy in maintaining positive relations with students",
+  COGACMTC: "Teacher: Encouraging mathematical thinking",
+  COGACRTC: "Teacher: Fostering reasoning",
+  TCMGOALS: "Teacher: Goals and views about teaching mathematics",
+  NEGSYMPT: "Teacher: Negative physical symptoms",
+    MISCED: "Parents: Mother’s level of education",
+    FISCED: "Parents: Father’s level of education"
+};
+
+    // Same format as variables. Variable can be both a predictor and a response
+    // Again, you will need to change the response both here and in R
+    // Do not forget you'll also have to manually fill in the range (typically [1,10]) for the response variable a little further down in Y_RIGHT_DOMAINS
+const responses = {
+  MATH: "Math Score",
+  LIFESAT: "Life Satisfaction",
+  BODYIMA: "Body Image",
+  PSYCHSYM: "Psychosomatic symptoms"
+};
+
+    // Marings, resizing, etc
+const margin = { top: 40, right: 110, bottom: 55, left: 80 };
+const outerWidth  = 750;
+const outerHeight = 450;
+const width  = outerWidth  - margin.left - margin.right;
+const height = outerHeight - margin.top  - margin.bottom;
+
+
+
+
+ // Axes sizes
+
+ //Predictor (already scaled 1-10)
+const X_DOMAIN = [1, 10];
+
+    // Y Right Axes
+    // Response variables have to manually be placed here but should be on a 1-10 scale
+const Y_RIGHT_DOMAINS = {
+  MATH:   [320, 550],
+  LIFESAT:[1, 10],
+  BODYIMA:[1, 10],
+  PSYCHSYM:[1,10]
+};
+
+    // Left Domain (proportion of students should typically always be less than 0.50)
+const Y_LEFT_DOMAIN = [0, 0.50];
+
+    // Left
+const svg1 = d3.select("#chart1")
+  .attr("width", outerWidth)
+  .attr("height", outerHeight);
+
+    // Right
+const svg2 = d3.select("#chart2")
+  .attr("width", outerWidth)
+  .attr("height", outerHeight);
+
+const container1 = svg1.append("g")
+  .attr("id", "container1")
+  .attr("transform", `translate(${margin.left},${margin.top})`);
+
+const container2 = svg2.append("g")
+  .attr("id", "container2")
+  .attr("transform", `translate(${margin.left},${margin.top})`);
+
+
+
+    // User selections for the dropdown menus to get plugged into populateDropdowns function below
+const var1  = document.getElementById("var1");
+const response1 = document.getElementById("response1");
+const var2  = document.getElementById("var2");
+const response2 = document.getElementById("response2");
+
+
+
+    // Function for interactive dropdown menu
+function populateDropdowns(varSelect, respSelect) {
+  Object.entries(predictors).forEach(([val, label]) => {
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = label;
+    varSelect.appendChild(opt);
+  });
+
+  Object.entries(responses).forEach(([val, label]) => {
+    const opt = document.createElement("option");
+    opt.value = val;
+    opt.textContent = label;
+    respSelect.appendChild(opt);
+  });
+}
+
+    // Function for using populateDropdown to create a chart
+function renderChart(container, svg, variable, response) {
+  const file = `json_export/${variable}_${response}.json`;
+
+  d3.json(file).then(data => {
+
+    container.selectAll("*").remove();
+
+
+
+
+    const x = d3.scaleLinear()
+      .domain(X_DOMAIN)
+      .range([0, width]);
+
+
+
+
+
+ const yLeft = d3.scaleLinear()
+  .domain(Y_LEFT_DOMAIN)
+  .range([height, 0]);
+
+    // Math is only response variable that is not in 1-10 range. everything else should be scaled
+    const yRight = d3.scaleLinear()
+      .domain(response === "MATH" ? Y_RIGHT_DOMAINS.MATH : [1,10])
+      .range([height, 0]);
+
+
+    const xAxisGroup = container.append("g")
+      .attr("class", "axis")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(x));
+
+    const yAxisLeftGroup = container.append("g")
+      .attr("class", "axis")
+      .call(d3.axisLeft(yLeft));
+
+    const yAxisRightGroup = container.append("g")
+      .attr("class", "axis")
+      .attr("transform", `translate(${width},0)`)
+      .call(d3.axisRight(yRight));
+
+    // Removes old labels
+    svg.selectAll(".x-axis-label").remove();
+    svg.selectAll(".y-axis-left-label").remove();
+    svg.selectAll(".y-axis-right-label").remove();
+
+    svg.append("text")
+      .attr("class", "x-axis-label")
+      .attr("fill", "back")
+      .attr("x", margin.left + width / 2)
+      .attr("y", outerHeight - 10)
+      .attr("text-anchor", "middle")
+      .text("Standardized predictor (Low → High)");
+
+    svg.append("text")
+      .attr("class", "y-axis-left-label")
+      .attr("fill", "black")
+      .attr("transform", `translate(35,${margin.top + height/2}) rotate(-90)`)
+      .attr("text-anchor", "middle")
+      .text("Proportion of students");
+
+    svg.append("text")
+      .attr("class", "y-axis-right-label")
+      .attr("fill", "black")
+      .attr("transform", `translate(${outerWidth - 70},${margin.top + height/2}) rotate(90)`)
+      .attr("text-anchor", "middle")
+      .text(responses[response]);
+
+    // Bars for frequency distribution (already binned in R)
+    container.selectAll(".bar")
+      .data(data)
+      .enter()
+      .append("rect")
+      .attr("class", "bar")
+      .attr("x", d => x(d.bin_start))
+      .attr("width", d => x(d.bin_end) - x(d.bin_start))
+      .attr("y", d => yLeft(d.proportion))
+      .attr("height", d => yLeft(0) - yLeft(d.proportion));
+
+    // Line for Response variable
+    const line = d3.line()
+      .x(d => x(d.avg_x))
+      .y(d => yRight(d.avg_response))
+      .curve(d3.curveMonotoneX);
+
+    container.append("path")
+      .datum(data)
+      .attr("class", "line")
+      .attr("d", line);
+
+  }).catch(err => {
+    container.selectAll("*").remove();
+    console.error(err);
+  });
+}
+
+
+
+    // Initialize graphs based on below values. In other words, default variables
+populateDropdowns(var1, response1);
+populateDropdowns(var2, response2);
+
+
+
+    // Reference above, the first graphs users see when they load webpage
+var1.value  = "BELONG";
+response1.value = "MATH";
+var2.value  = "BULLIED";
+response2.value = "LIFESAT";
+
+function updateChart1() {
+  renderChart(container1, svg1, var1.value, response1.value);
+}
+function updateChart2() {
+  renderChart(container2, svg2, var2.value, response2.value);
+}
+
+updateChart1();
+updateChart2();
+
+var1.addEventListener("change", updateChart1);
+response1.addEventListener("change", updateChart1);
+var2.addEventListener("change", updateChart2);
+response2.addEventListener("change", updateChart2);
+</script>
+
+</body>
+</html>

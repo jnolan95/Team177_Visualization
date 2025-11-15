@@ -1,0 +1,34 @@
+[
+  {
+    "bin_start": 1,
+    "bin_end": 2,
+    "count": 3115,
+    "avg_x": 1,
+    "avg_response": 417.3132,
+    "proportion": 0.0088
+  },
+  {
+    "bin_start": 3,
+    "bin_end": 4,
+    "count": 11313,
+    "avg_x": 4,
+    "avg_response": 438.2054,
+    "proportion": 0.0321
+  },
+  {
+    "bin_start": 6,
+    "bin_end": 7,
+    "count": 109272,
+    "avg_x": 7,
+    "avg_response": 446.7713,
+    "proportion": 0.3098
+  },
+  {
+    "bin_start": 9,
+    "bin_end": 10,
+    "count": 228970,
+    "avg_x": 10,
+    "avg_response": 450.4605,
+    "proportion": 0.6492
+  }
+]
